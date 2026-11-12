@@ -1,0 +1,6 @@
+---
+- name: Deploy Alertmanager
+  hosts: all
+  become: true
+  roles:
+    - alertmanager

@@ -1,0 +1,16 @@
+alertmanager_version: "0.34.2"
+alertmanager_user: "victoria"
+alertmanager_group: "victoria"
+nexus_username: "admin"
+nexus_password: "user123456"
+config_directory: "/etc/alertmanager"
+systemd_directory: "/etc/systemd/system"
+alertmanager_storage_path: "/var/lib/alertmanager"
+alertmanager_listen_address: ":9093"
+alertmanager_seed_host: am-1
+alertmanager_cluster_advertise: "{{ ansible_host }}:9094"
+alertmanager_cluster_peers: >-
+  {{
+    [] if inventory_hostname == alertmanager_seed_host
+    else [hostvars[alertmanager_seed_host].ansible_host  ~ ':9094']
+  }}

@@ -1,0 +1,76 @@
+- name: Create group if doesn't exist
+  ansible.builtin.group:
+    name: "{{ alertmanager_group }}"
+    state: present
+
+- name: Create User if doesn't exist
+  ansible.builtin.user:
+    name: "{{ alertmanager_user }}"
+    state: present
+    group: "{{ alertmanager_group }}"
+    create_home: false
+    system: true
+    shell: /usr/sbin/nologin
+
+#- name: Download Alertmanager binaries
+#  ansible.builtin.get_url:
+#    url: "http://localhost:8081/repository/alertmanager/binaries/{{ item }}"
+#    dest: "/usr/local/bin/{{ item }}"
+#    url_username: "{{ nexus_username }}"
+#    url_password: "{{ nexus_password }}"
+#    mode: '0755'
+#    owner: "{{ alertmanager_user }}"
+#    group: "{{ alertmanager_group }}"
+#  loop:
+#    - alertmanager
+#    - amtool
+
+- name: Create config directory
+  ansible.builtin.file:
+    path: "{{ config_directory }}"
+    state: directory
+    owner: "{{ alertmanager_user }}"
+    group: "{{ alertmanager_group }}"
+    mode: '0755'
+
+- name: Alertmanager config
+  ansible.builtin.template:
+    src: alertmanager.yml.j2
+    dest: "{{ config_directory }}/alertmanager.yml"
+    owner: "{{ alertmanager_user }}"
+    group: "{{ alertmanager_group }}"
+    mode: '0644'
+  notify: reload systemd and restart alertmanager
+
+- name: Create data directory
+  ansible.builtin.file:
+    path: "{{ alertmanager_storage_path }}"
+    state: directory
+    owner: "{{ alertmanager_user }}"
+    group: "{{ alertmanager_group }}"
+    mode: '0755'
+
+- name: Alertmanager systemd unit
+  ansible.builtin.template:
+    src: alertmanager.service.j2
+    dest: "{{ systemd_directory }}/alertmanager.service"
+    owner: root
+    group: root
+    mode: '0644'
+  notify: reload systemd and restart alertmanager
+
+- name: Run and Enable Alertmanager
+  ansible.builtin.systemd:
+    name: alertmanager
+    state: started
+    enabled: yes
+    daemon_reload: yes
+
+- name: Wait for Alertmanager to be ready
+  ansible.builtin.uri:
+    url: http://localhost:9093/-/ready
+    status_code: 200
+  retries: 10
+  delay: 3
+  register: result
+  until: result.status == 200
